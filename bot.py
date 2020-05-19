@@ -4,16 +4,27 @@ from telegram.ext import Updater, CommandHandler, Filters, MessageHandler, Conve
 from telegram import ChatAction, ReplyKeyboardMarkup, ReplyKeyboardRemove
 import logging
 import requests
+from dotenv import load_dotenv
+import os
+
+#carrega as variaveis de ambiente
+load_dotenv()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-OMDB_KEY = '1d4c1640'
+OMDB_KEY = os.getenv('OMDB_KEY')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+
 title_name = ''
 
-CHOOSING, EVALUATE, FINISHING_EVALUATION = range(3)
+CHOOSING, EVALUATE = range(2)
 
+evaluation_keys = {
+  '👍': 'liked',
+  '👎': 'disliked'
+}
 
-updater = Updater(token='1190067969:AAFHaVBG7JKcMv3XWqRneJeDE68vpqhPISU', use_context=True)
+updater = Updater(token=TELEGRAM_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 
 
@@ -65,9 +76,11 @@ def seleciona_avalicao(update, context):
 
   title_name = update.message.text
 
+  context.user_data['selected_title'] = title_name
+
   text = f'Qual a sua avaliação para {title_name}?'
   
-  reply_keyboard = [['Gostei 👍'], ['Não gostei 👎']]
+  reply_keyboard = [['👍'], ['👎']]
 
   update.message.reply_text(text, reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
 
@@ -76,7 +89,20 @@ def seleciona_avalicao(update, context):
 def finaliza_avaliacao(update, context):
   context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
-  #context.user_data
+  evaluation = update.message.text
+
+  key = evaluation_keys[evaluation]
+
+  selected_title = context.user_data['selected_title']
+
+  try:
+    evaluated = context.user_data[key]
+    context.user_data[key] = [*evaluated, selected_title]
+    #print(context.user_data[key])
+    
+  except KeyError:
+    context.user_data[key] = [selected_title]
+    #print(context.user_data[key])
 
   update.message.reply_text('Sua avaliação foi salva')
 
