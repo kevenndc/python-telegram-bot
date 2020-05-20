@@ -31,9 +31,30 @@ dispatcher = updater.dispatcher
 def start(update, context):
   context.bot.send_message(chat_id=update.effective_chat.id, text="Eu sou um bot, por favor, fale comigo!")
 
+def get_movie_info(movies, display_title):
+  for movie in movies:
+    if movie['display_title'] == display_title:
+      imdbID = movie['imdbID']
+      r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&i={imdbID}')
+      r = r.json()
 
-def get_movie_title(query):
-  titles = []
+      if (r['Response'] == 'False'):
+        return False
+      else:
+        return {
+          'Title': r['Title'],
+          'display_title': display_title,
+          'Year': r['Year'],
+          'Genre': r['Genre'],
+          'Director': r['Director'],
+          'imdbID': r['imdbID'],
+          'Ratings': r['Ratings'],
+          'Metascore': r['Metascore'],
+          'imdbVotes': r['imdbVotes']
+        }
+
+
+def get_movies(query):
   r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&s={query}')
   r = r.json()
 
@@ -41,12 +62,17 @@ def get_movie_title(query):
     return False
   else:
     search_results = r['Search']
+    return search_results
 
-    for result in search_results:
-      title = result['Title']
-      titles.append(title)
+def get_titles(movies):
+  titles = []
 
-    return titles
+  for movie in movies:
+    title = f'{movie["Title"]} ({movie["Year"]})'
+    movie['display_title'] = title
+    titles.append(title)
+ 
+  return titles
   
 
 def avaliar(update, context):
@@ -54,8 +80,10 @@ def avaliar(update, context):
   bot_context.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
   query = '+'.join(context.args)
+  movies = get_movies(query)
+  titles = get_titles(movies)
 
-  titles = get_movie_title(query)
+  context.user_data['movies_dict_array'] = movies
 
   if not titles: 
     update.message.reply_text('Não encontrei nenhum filme com esse nome 😥')
@@ -76,7 +104,9 @@ def seleciona_avalicao(update, context):
 
   title_name = update.message.text
 
-  context.user_data['selected_title'] = title_name
+  movie = get_movie_info(context.user_data['movies_dict_array'], title_name)
+  del context.user_data['movies_dict_array']
+  context.user_data['selected_movie'] = movie
 
   text = f'Qual a sua avaliação para {title_name}?'
   
@@ -90,19 +120,17 @@ def finaliza_avaliacao(update, context):
   context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
   evaluation = update.message.text
-
   key = evaluation_keys[evaluation]
 
-  selected_title = context.user_data['selected_title']
+  selected_movie = context.user_data['selected_movie']
+  del context.user_data['selected_movie']
 
   try:
     evaluated = context.user_data[key]
-    context.user_data[key] = [*evaluated, selected_title]
-    #print(context.user_data[key])
+    context.user_data[key] = [*evaluated, selected_movie]
     
   except KeyError:
-    context.user_data[key] = [selected_title]
-    #print(context.user_data[key])
+    context.user_data[key] = [selected_movie]
 
   update.message.reply_text('Sua avaliação foi salva')
 
