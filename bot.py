@@ -6,16 +6,11 @@ import logging
 import requests
 from dotenv import load_dotenv
 import os
-from pyswip import Prolog, registerForeign
 
 #carrega as variaveis de ambiente
 load_dotenv()
 
 prolog = Prolog()
-
-prolog.consult("base.pl")
-
-prolog.assertz("liked(Star)")
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -37,13 +32,6 @@ dispatcher = updater.dispatcher
 
 def start(update, context):
   context.bot.send_message(chat_id=update.effective_chat.id, text="Eu sou um bot, por favor, fale comigo!")
-  
-
-def assert_movie(evaluation, movie_title):
-  prolog.assertz("liked(Star)")
-
-  # for soln in prolog.query(f"{evaluation}(X)"):
-  #   print(f'{evaluation} {soln["X"]}')
 
 def get_movie_info(movies, display_title):
   for movie in movies:
