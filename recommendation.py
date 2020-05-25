@@ -218,9 +218,9 @@ def get_top_neighbors_rated_item(user_id, movie_id, N):
     if user_id != user and movie_id in user_items:
       similars[(user_id, user)] = user_similarity[(user_id, user)]
 
-    sorted_similars = sorted(similars.items(), key=operator.itemgetter(1), reverse=True)
+  sorted_similars = sorted(similars.items(), key=operator.itemgetter(1), reverse=True)
 
-    return sorted_similars[:N]
+  return sorted_similars[:N]
 
 def predict_rating(user_id, movie_id, N=20):
 

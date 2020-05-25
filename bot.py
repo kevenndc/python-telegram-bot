@@ -10,8 +10,6 @@ import os
 #carrega as variaveis de ambiente
 load_dotenv()
 
-prolog = Prolog()
-
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 OMDB_KEY = os.getenv('OMDB_KEY')
@@ -33,7 +31,7 @@ dispatcher = updater.dispatcher
 def start(update, context):
   context.bot.send_message(chat_id=update.effective_chat.id, text="Eu sou um bot, por favor, fale comigo!")
 
-def get_movie_info(movies, display_title):
+def get_movie_info(movies, display_title, evaluation):
   for movie in movies:
     if movie['display_title'] == display_title:
       imdbID = movie['imdbID']
@@ -44,15 +42,14 @@ def get_movie_info(movies, display_title):
         return False
       else:
         return {
-          'Title': r['Title'],
-          'display_title': display_title,
+          'Title': display_title,
           'Year': r['Year'],
           'Genre': r['Genre'],
-          'Director': r['Director'],
           'imdbID': r['imdbID'],
           'Ratings': r['Ratings'],
           'Metascore': r['Metascore'],
-          'imdbVotes': r['imdbVotes']
+          'imdbVotes': r['imdbVotes'],
+          'user_evaluation:': evaluation
         }
 
 
@@ -103,18 +100,16 @@ def avaliar(update, context):
 
 def seleciona_avalicao(update, context):
   context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
-
+  
   title_name = update.message.text
 
-  movie = get_movie_info(context.user_data['movies_dict_array'], title_name)
-  del context.user_data['movies_dict_array']
-  context.user_data['selected_movie'] = movie
+  #movie = get_movie_info(context.user_data['movies_dict_array'], title_name)
+  #del context.user_data['movies_dict_array']
+  context.user_data['selected_movie'] = title_name
 
   text = f'Qual a sua avaliação para {title_name}?'
-  
-  reply_keyboard = [['👍'], ['👎']]
 
-  update.message.reply_text(text, reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+  update.message.reply_text(text)
 
   return EVALUATE
 
@@ -122,19 +117,24 @@ def finaliza_avaliacao(update, context):
   context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
   evaluation = update.message.text
-  key = evaluation_keys[evaluation]
+  evaluation = float(evaluation.replace(',', '.'))
 
+  movies_dict = context.user_data['movies_dict_array']
   selected_movie = context.user_data['selected_movie']
+
+  movie = get_movie_info(movies_dict, selected_movie, evaluation)
+
   del context.user_data['selected_movie']
+  del context.user_data['movies_dict_array']
 
   try:
-    evaluated = context.user_data[key]
-    context.user_data[key] = [*evaluated, selected_movie]
+    evaluated = context.user_data['evaluated_movies']
+    context.user_data['evaluated_movies'] = [*evaluated, movie]
     
   except KeyError:
-    context.user_data[key] = [selected_movie]
+    context.user_data['evaluated_movies'] = [movie]
 
-  assert_movie(key, selected_movie['Title'])
+  print(context.user_data['evaluated_movies'])
 
   update.message.reply_text('Sua avaliação foi salva')
 
@@ -149,12 +149,11 @@ avaliacao_handler = ConversationHandler(
 
   states={
     CHOOSING: [MessageHandler(Filters.text, seleciona_avalicao)],
-    EVALUATE: [MessageHandler(Filters.text, finaliza_avaliacao)]
+    EVALUATE: [MessageHandler(Filters.regex('(([0-5][,]?)[0-9])'), finaliza_avaliacao)]
   },
 
   fallbacks=[CommandHandler('avaliar', filme_nao_encontrado)]
 )
-
 
 start_handler = CommandHandler('start', start)
 
