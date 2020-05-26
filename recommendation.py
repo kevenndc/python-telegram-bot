@@ -1,17 +1,10 @@
-import pandas as pd
+from controller import links, movies, ratings, tags, idx
 import math
 import numpy as np 
 import operator
 import joblib
 import os.path
 
-idx = pd.IndexSlice
-
-#Iniciado o dataset
-links = pd.read_csv('./dataset/links.csv', index_col=['movieId'])
-movies = pd.read_csv('./dataset/movies.csv', sep=',', index_col=['movieId'])
-ratings = pd.read_csv('./dataset/ratings.csv', index_col=['userId', 'movieId'])
-tags = pd.read_csv('./dataset/tags.csv', index_col=['userId', 'movieId'])
 
 def get_movies_by_user(user_id, rating_cut=0, _list=False):
 
@@ -286,10 +279,10 @@ def recommend(user_id, N=10):
   return sorted_movies[:N]
 
 #Teste
-count = 1
-top10 = recommend(1, 10)
-print("Filmes recomendados para o usuário 1:")
+# count = 1
+# top10 = recommend(1, 10)
+# print("Filmes recomendados para o usuário 1:")
 
-for movie in top10:
-  print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
-  count += 1
+# for movie in top10:
+#   print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
+#   count += 1

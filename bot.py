@@ -6,6 +6,8 @@ import logging
 import requests
 from dotenv import load_dotenv
 import os
+import sys
+from controller import persist_evaluation
 
 #carrega as variaveis de ambiente
 load_dotenv()
@@ -19,39 +21,12 @@ title_name = ''
 
 CHOOSING, EVALUATE = range(2)
 
-evaluation_keys = {
-  '👍': 'liked',
-  '👎': 'disliked'
-}
-
 updater = Updater(token=TELEGRAM_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 
 
 def start(update, context):
   context.bot.send_message(chat_id=update.effective_chat.id, text="Eu sou um bot, por favor, fale comigo!")
-
-def get_movie_info(movies, display_title, evaluation):
-  for movie in movies:
-    if movie['display_title'] == display_title:
-      imdbID = movie['imdbID']
-      r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&i={imdbID}')
-      r = r.json()
-
-      if (r['Response'] == 'False'):
-        return False
-      else:
-        return {
-          'Title': display_title,
-          'Year': r['Year'],
-          'Genre': r['Genre'],
-          'imdbID': r['imdbID'],
-          'Ratings': r['Ratings'],
-          'Metascore': r['Metascore'],
-          'imdbVotes': r['imdbVotes'],
-          'user_evaluation:': evaluation
-        }
-
 
 def get_movies(query):
   r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&s={query}')
@@ -103,8 +78,6 @@ def seleciona_avalicao(update, context):
   
   title_name = update.message.text
 
-  #movie = get_movie_info(context.user_data['movies_dict_array'], title_name)
-  #del context.user_data['movies_dict_array']
   context.user_data['selected_movie'] = title_name
 
   text = f'Qual a sua avaliação para {title_name}?'
@@ -119,22 +92,24 @@ def finaliza_avaliacao(update, context):
   evaluation = update.message.text
   evaluation = float(evaluation.replace(',', '.'))
 
-  movies_dict = context.user_data['movies_dict_array']
-  selected_movie = context.user_data['selected_movie']
+  user_id = update.message.from_user.id
 
-  movie = get_movie_info(movies_dict, selected_movie, evaluation)
+  movies_dict = context.user_data['movies_dict_array']
+  selected_movie = context.user_data['selected_movie']  
+  
+  persist_evaluation(movies_dict, selected_movie, evaluation, user_id)
 
   del context.user_data['selected_movie']
   del context.user_data['movies_dict_array']
 
-  try:
-    evaluated = context.user_data['evaluated_movies']
-    context.user_data['evaluated_movies'] = [*evaluated, movie]
+  # try:
+  #   evaluated = context.user_data['evaluated_movies']
+  #   context.user_data['evaluated_movies'] = [*evaluated, movie]
     
-  except KeyError:
-    context.user_data['evaluated_movies'] = [movie]
+  # except KeyError:
+  #   context.user_data['evaluated_movies'] = [movie]
 
-  print(context.user_data['evaluated_movies'])
+  # print(context.user_data['evaluated_movies'])
 
   update.message.reply_text('Sua avaliação foi salva')
 
