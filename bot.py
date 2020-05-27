@@ -7,7 +7,7 @@ import requests
 from dotenv import load_dotenv
 import os
 import sys
-from controller import persist_evaluation
+from controller import persist_rating
 
 #carrega as variaveis de ambiente
 load_dotenv()
@@ -89,15 +89,15 @@ def seleciona_avalicao(update, context):
 def finaliza_avaliacao(update, context):
   context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
-  evaluation = update.message.text
-  evaluation = float(evaluation.replace(',', '.'))
+  rating = update.message.text
+  rating = float(rating.replace(',', '.'))
 
   user_id = update.message.from_user.id
 
   movies_dict = context.user_data['movies_dict_array']
   selected_movie = context.user_data['selected_movie']  
   
-  persist_evaluation(movies_dict, selected_movie, evaluation, user_id)
+  persist_rating(movies_dict, selected_movie, rating, user_id)
 
   del context.user_data['selected_movie']
   del context.user_data['movies_dict_array']

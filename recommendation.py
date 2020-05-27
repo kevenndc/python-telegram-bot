@@ -183,12 +183,12 @@ def map_similarity(override=False):
 
   for x_user in all_users:
     for y_user in all_users:
-      if x_user < y_user:
+      if x_user != y_user:
         similarity_map[(x_user, y_user)] = similarity(x_user, y_user)
 
   joblib.dump(similarity_map, './dataset/users_similarity.pkl')
 
-map_similarity()
+map_similarity(override=True)
 
 user_similarity = joblib.load('./dataset/users_similarity.pkl')
 
@@ -278,11 +278,11 @@ def recommend(user_id, N=10):
 
   return sorted_movies[:N]
 
-#Teste
-# count = 1
-# top10 = recommend(1, 10)
-# print("Filmes recomendados para o usuário 1:")
+#
+count = 1
+top10 = recommend(1034572560, 10)
+print("Filmes recomendados para o usuário 1:")
 
-# for movie in top10:
-#   print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
-#   count += 1
+for movie in top10:
+  print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
+  count += 1
