@@ -7,7 +7,9 @@ import requests
 from dotenv import load_dotenv
 import os
 import sys
-from recommendation import persist_rating, is_rated, recommend, get_movie_title
+from recommendation import persist_rating, is_rated, recommend, get_movie_title, get_imdb_id
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 #carrega as variaveis de ambiente
 load_dotenv()
@@ -29,7 +31,15 @@ def start(update, context):
   context.bot.send_message(chat_id=update.effective_chat.id, text="Eu sou um bot, por favor, fale comigo!")
 
 def get_movies(query):
-  r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&s={query}')
+  s = requests.Session()
+  retries = Retry(
+    total=3,
+    backoff_factor=0.1,
+    status_forcelist=[ 400, 502, 503, 504 ]
+  )
+
+  s.mount('http://', HTTPAdapter(max_retries=retries))
+  r = s.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&s={query}')
   r = r.json()
 
   if r['Response'] == 'False':
@@ -63,7 +73,18 @@ def get_movie_info(movies_dict, display_title):
           'genres': r['Genre'].replace(',', '|').replace(' ', ''),
           'imdbID': r['imdbID'],
         }
-  
+
+def get_movie_poster(movie_id):
+  imdbId = get_imdb_id(movie_id)
+  print('imdbId', imdbId)
+
+  r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&i={imdbId}')
+  r = r.json()
+
+  if (r['Response'] == 'False'):
+    return False
+  else:
+    return r['Poster']
 
 def avaliar(update, context):
   bot_context = context.bot
@@ -151,20 +172,43 @@ def recomendacao(update, context):
   text = 'Terminei! Aqui estão alguma recomendações de filmes para você!\n'
 
   index = 1
+  msg_sent = False
 
   for recomendacao in recomendacoes:
-    text += f'{index}  - {get_movie_title(recomendacao[0])}\n'
+    if not msg_sent:
+      update.message.reply_text(text)
+      msg_sent = True
+
+    movie_id = recomendacao[0]
+    poster = get_movie_poster(movie_id)
+    title = f'{index} - {get_movie_title(movie_id)}'
+  
+    context.bot.send_photo(
+        chat_id=update.message.chat_id, 
+        photo=poster, 
+        caption=title
+      )
     index += 1
 
-  update.message.reply_text(text)
+def teste(update, context):
+  poster = get_movie_poster(1)
+  title = get_movie_title(1)
+  
+  context.bot.send_photo(
+      chat_id=update.message.chat_id, 
+      photo=poster, 
+      caption=title
+    )
 
 
 start_handler = CommandHandler('start', start)
 recomend_handler = CommandHandler('recomendacao', recomendacao)
+teste_handler = CommandHandler('teste', teste)
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(avaliacao_handler)
 dispatcher.add_handler(recomend_handler)
+dispatcher.add_handler(teste_handler)
 
 updater.start_polling()
 updater.idle()

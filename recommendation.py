@@ -297,7 +297,6 @@ def recommend(user_id, N=10):
       predicts[movie] = rating
 
   sorted_movies = sorted(predicts.items(), key=operator.itemgetter(1), reverse=True)
-  print(sorted_movies[:N])
 
   return sorted_movies[:N]
 
@@ -384,5 +383,6 @@ def persist_rating(movie_info, rating, user_id):
 def get_imdb_id(movie_id):
 
   imdbId = int(links.loc[idx[movie_id], 'imdbId'])
+  imdbId = "tt%.7d" % imdbId
 
-  return f'tt{imdbId}'
+  return imdbId
