@@ -7,7 +7,7 @@ import requests
 from dotenv import load_dotenv
 import os
 import sys
-from controller import persist_rating
+from recommendation import persist_rating, is_rated, recommend, get_movie_title
 
 #carrega as variaveis de ambiente
 load_dotenv()
@@ -47,6 +47,22 @@ def get_titles(movies):
     titles.append(title)
  
   return titles
+
+def get_movie_info(movies_dict, display_title):
+  for movie in movies_dict:
+    if movie['display_title'] == display_title:
+      imdbID = movie['imdbID']
+      r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&i={imdbID}')
+      r = r.json()
+
+      if (r['Response'] == 'False'):
+        return False
+      else:
+        return {
+          'title': display_title,
+          'genres': r['Genre'].replace(',', '|').replace(' ', ''),
+          'imdbID': r['imdbID'],
+        }
   
 
 def avaliar(update, context):
@@ -78,9 +94,13 @@ def seleciona_avalicao(update, context):
   
   title_name = update.message.text
 
+  if (is_rated(title_name, update.message.from_user.id)):
+    update.message.reply_text('Você já avaliou esse filme.')
+    return ConversationHandler.END
+
   context.user_data['selected_movie'] = title_name
 
-  text = f'Qual a sua avaliação para {title_name}?'
+  text = f'Qual a sua avaliação para {title_name}? (De 0,0 a 5,0)'
 
   update.message.reply_text(text)
 
@@ -96,20 +116,13 @@ def finaliza_avaliacao(update, context):
 
   movies_dict = context.user_data['movies_dict_array']
   selected_movie = context.user_data['selected_movie']  
+
+  movie_info = get_movie_info(movies_dict, selected_movie)
   
-  persist_rating(movies_dict, selected_movie, rating, user_id)
+  persist_rating(movie_info, rating, user_id)
 
   del context.user_data['selected_movie']
   del context.user_data['movies_dict_array']
-
-  # try:
-  #   evaluated = context.user_data['evaluated_movies']
-  #   context.user_data['evaluated_movies'] = [*evaluated, movie]
-    
-  # except KeyError:
-  #   context.user_data['evaluated_movies'] = [movie]
-
-  # print(context.user_data['evaluated_movies'])
 
   update.message.reply_text('Sua avaliação foi salva')
 
@@ -124,16 +137,34 @@ avaliacao_handler = ConversationHandler(
 
   states={
     CHOOSING: [MessageHandler(Filters.text, seleciona_avalicao)],
-    EVALUATE: [MessageHandler(Filters.regex('(([0-5][,]?)[0-9])'), finaliza_avaliacao)]
+    EVALUATE: [MessageHandler(Filters.regex('^([0-4][,][0-9]|5[,]0)$'), finaliza_avaliacao)]
   },
 
   fallbacks=[CommandHandler('avaliar', filme_nao_encontrado)]
 )
 
+def recomendacao(update, context):
+  update.message.reply_text('Estou calculando algumas boa recomendações para você. Isso pode levar alguns minutos. Eu aviso quando terminar! 😉')
+
+  recomendacoes = recommend(update.message.from_user.id, N=5)
+
+  text = 'Terminei! Aqui estão alguma recomendações de filmes para você!\n'
+
+  index = 1
+
+  for recomendacao in recomendacoes:
+    text += f'{index}  - {get_movie_title(recomendacao[0])}\n'
+    index += 1
+
+  update.message.reply_text(text)
+
+
 start_handler = CommandHandler('start', start)
+recomend_handler = CommandHandler('recomendacao', recomendacao)
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(avaliacao_handler)
+dispatcher.add_handler(recomend_handler)
 
 updater.start_polling()
 updater.idle()

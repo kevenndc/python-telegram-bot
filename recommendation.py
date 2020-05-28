@@ -1,9 +1,25 @@
-from controller import links, movies, ratings, tags, idx
 import math
 import numpy as np 
 import operator
 import joblib
 import os.path
+import pandas as pd
+import requests
+import os
+from dotenv import load_dotenv
+
+#carrega as variaveis de ambiente
+load_dotenv()
+
+OMDB_KEY = os.getenv('OMDB_KEY')
+
+idx = pd.IndexSlice
+
+#Iniciado o dataset
+links = pd.read_csv('./dataset/links.csv', index_col=['movieId'])
+movies = pd.read_csv('./dataset/movies.csv', sep=',', index_col=['movieId'])
+ratings = pd.read_csv('./dataset/ratings.csv', index_col=['userId', 'movieId'])
+tags = pd.read_csv('./dataset/tags.csv', index_col=['userId', 'movieId'])
 
 
 def get_movies_by_user(user_id, rating_cut=0, _list=False):
@@ -18,7 +34,13 @@ def get_movies_by_user(user_id, rating_cut=0, _list=False):
   """
 
   movie_dict = {}
-  rating_dict = ratings.loc[idx[user_id, :], 'rating'].T.to_dict()
+  rating_dict = {}
+
+  try:
+    rating_dict = ratings.loc[idx[user_id, :], 'rating'].T.to_dict()
+
+  except KeyError:
+    return False
 
   for item in rating_dict:
     if rating_cut != 0:
@@ -188,7 +210,7 @@ def map_similarity(override=False):
 
   joblib.dump(similarity_map, './dataset/users_similarity.pkl')
 
-map_similarity(override=True)
+map_similarity()
 
 user_similarity = joblib.load('./dataset/users_similarity.pkl')
 
@@ -275,14 +297,92 @@ def recommend(user_id, N=10):
       predicts[movie] = rating
 
   sorted_movies = sorted(predicts.items(), key=operator.itemgetter(1), reverse=True)
+  print(sorted_movies[:N])
 
   return sorted_movies[:N]
 
-#
-count = 1
-top10 = recommend(1034572560, 10)
-print("Filmes recomendados para o usuário 1:")
+#Teste
+# count = 1
+# top10 = recommend(1034572560, 10)
+# print("Filmes recomendados para o usuário 1:")
 
-for movie in top10:
-  print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
-  count += 1
+# for movie in top10:
+#   print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
+#   count += 1
+
+
+
+def persist_new_movie(movie_id, movie_info):
+  title, genres, imdbId = movie_info.values()
+
+  #Adiciona novo filme no arquivo 'movies.csv'
+  new_movie = {
+    'movieId': [movie_id],
+    'title': [title],
+    'genres': [genres]
+  }
+
+  df = pd.DataFrame(new_movie, columns=['movieId', 'title', 'genres'])
+  df.set_index('movieId', inplace=True)
+
+  df.to_csv('./dataset/movies.csv', mode='a', header=None)
+
+  #Adiciona os dados do filme em 'links.csv'
+  new_link = {
+    'movieId': [movie_id],
+    'imdbId': [imdbId.replace('t', '')],
+    'tmdbId': ['0']
+  }
+
+  df = pd.DataFrame(new_link, columns=['movieId', 'imdbId', 'tmdbId'])
+  df.set_index('movieId', inplace=True)
+
+  df.to_csv('./dataset/links.csv', mode='a', header=None)
+
+def persist_new_rating(user_id, movie_id, rating):
+  
+  new_rating = {
+    'userId': [user_id],
+    'movieId': [movie_id],
+    'rating': [rating],
+    'timestamp': ['0']
+  }
+
+  df = pd.DataFrame(new_rating, columns=['userId', 'movieId', 'rating', 'timestamp'])
+  df.set_index('userId', inplace=True)
+  df.to_csv('./dataset/ratings.csv', mode='a', header=None)
+
+  map_similarity(override=True)
+
+def is_rated(movie_title, user_id):
+  if movie_title in movies.values:
+    [movie_id] = movies.loc[movies.isin([movie_title]).any(axis=1)].index.tolist()
+    user_movies = get_movies_by_user(user_id, _list=True)
+    
+    #Exclui a avaliação existente feita pelo mesmo usuário
+    if user_movies and movie_id in user_movies:
+      return True
+
+  return False
+
+
+def persist_rating(movie_info, rating, user_id):
+
+  movie_title = movie_info['title']
+
+  if movie_title in movies.values:
+    [movie_id] = movies.loc[movies.isin([movie_title]).any(axis=1)].index.tolist()
+
+  else:
+    movie_id = movies.last_valid_index() + 1
+    persist_new_movie(movie_id, movie_info)
+
+  persist_new_rating(user_id, movie_id, rating)
+
+  return True
+
+def get_imdb_id(movie_id):
+
+  imdbId = int(links.loc[idx[movie_id], 'imdbId'])
+
+  return f'tt{imdbId}'
