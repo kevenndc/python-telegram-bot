@@ -281,6 +281,26 @@ def predict_rating(user_id, movie_id, N=20):
 
   return final_rating
 
+def update_movies():
+  global movies
+
+  movies = pd.read_csv('./dataset/movies.csv', sep=',', index_col=['movieId'])
+
+def update_links():
+  global links
+
+  links = pd.read_csv('./dataset/links.csv', index_col=['movieId'])
+
+def update_ratings():
+  global ratings
+
+  ratings = pd.read_csv('./dataset/ratings.csv', index_col=['userId', 'movieId'])
+
+def update_user_similarity():
+  global user_similarity
+
+  user_similarity = joblib.load('./dataset/users_similarity.pkl')
+
 def recommend(user_id, N=10):
 
   all_movies = list(movies.index.values)
@@ -300,16 +320,14 @@ def recommend(user_id, N=10):
 
   return sorted_movies[:N]
 
-#Teste
-# count = 1
-# top10 = recommend(1034572560, 10)
-# print("Filmes recomendados para o usuário 1:")
+#
+count = 1
+top10 = recommend(1034572560, 10)
+print("Filmes recomendados para o usuário 1:")
 
-# for movie in top10:
-#   print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
-#   count += 1
-
-
+for movie in top10:
+  print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
+  count += 1
 
 def persist_new_movie(movie_id, movie_info):
   title, genres, imdbId = movie_info.values()
@@ -323,8 +341,10 @@ def persist_new_movie(movie_id, movie_info):
 
   df = pd.DataFrame(new_movie, columns=['movieId', 'title', 'genres'])
   df.set_index('movieId', inplace=True)
-
+  
   df.to_csv('./dataset/movies.csv', mode='a', header=None)
+
+  update_movies()
 
   #Adiciona os dados do filme em 'links.csv'
   new_link = {
@@ -337,6 +357,8 @@ def persist_new_movie(movie_id, movie_info):
   df.set_index('movieId', inplace=True)
 
   df.to_csv('./dataset/links.csv', mode='a', header=None)
+
+  update_links()
 
 def persist_new_rating(user_id, movie_id, rating):
   
@@ -351,7 +373,11 @@ def persist_new_rating(user_id, movie_id, rating):
   df.set_index('userId', inplace=True)
   df.to_csv('./dataset/ratings.csv', mode='a', header=None)
 
+  update_ratings()
+
   map_similarity(override=True)
+  update_user_similarity()
+
 
 def is_rated(movie_title, user_id):
   if movie_title in movies.values:
@@ -367,6 +393,15 @@ def is_rated(movie_title, user_id):
 
 def persist_rating(movie_info, rating, user_id):
 
+  """Adiciona a nova avaliação no dataset
+
+    Keyword arguments:
+    movie_info -- dicionário contendo as informções do filme
+    rating -- avaliação do usuário
+    user_id -- id do usuário
+
+  """
+
   movie_title = movie_info['title']
 
   if movie_title in movies.values:
@@ -377,6 +412,7 @@ def persist_rating(movie_info, rating, user_id):
     persist_new_movie(movie_id, movie_info)
 
   persist_new_rating(user_id, movie_id, rating)
+
 
   return True
 

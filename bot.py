@@ -76,7 +76,6 @@ def get_movie_info(movies_dict, display_title):
 
 def get_movie_poster(movie_id):
   imdbId = get_imdb_id(movie_id)
-  print('imdbId', imdbId)
 
   r = requests.get(f'http://www.omdbapi.com/?apikey={OMDB_KEY}&i={imdbId}')
   r = r.json()
