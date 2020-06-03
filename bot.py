@@ -10,6 +10,7 @@ import sys
 from recommendation import persist_rating, is_rated, recommend, get_movie_title, get_imdb_id
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
+from prolog_functions import assert_rating
 
 #carrega as variaveis de ambiente
 load_dotenv()
@@ -138,6 +139,8 @@ def finaliza_avaliacao(update, context):
   selected_movie = context.user_data['selected_movie']  
 
   movie_info = get_movie_info(movies_dict, selected_movie)
+
+  assert_rating(user_id, selected_movie, rating)
   
   persist_rating(movie_info, rating, user_id)
 
@@ -189,25 +192,13 @@ def recomendacao(update, context):
       )
     index += 1
 
-def teste(update, context):
-  poster = get_movie_poster(1)
-  title = get_movie_title(1)
-  
-  context.bot.send_photo(
-      chat_id=update.message.chat_id, 
-      photo=poster, 
-      caption=title
-    )
-
 
 start_handler = CommandHandler('start', start)
 recomend_handler = CommandHandler('recomendacao', recomendacao)
-teste_handler = CommandHandler('teste', teste)
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(avaliacao_handler)
 dispatcher.add_handler(recomend_handler)
-dispatcher.add_handler(teste_handler)
 
 updater.start_polling()
 updater.idle()

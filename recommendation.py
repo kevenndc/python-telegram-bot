@@ -320,15 +320,6 @@ def recommend(user_id, N=10):
 
   return sorted_movies[:N]
 
-#
-count = 1
-top10 = recommend(1034572560, 10)
-print("Filmes recomendados para o usuário 1:")
-
-for movie in top10:
-  print("\t %.2d" % count, "[%.1f]" % movie[1], get_movie_title(movie[0]))
-  count += 1
-
 def persist_new_movie(movie_id, movie_info):
   title, genres, imdbId = movie_info.values()
 
